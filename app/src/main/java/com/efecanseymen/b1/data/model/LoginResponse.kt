@@ -5,7 +5,8 @@ data class LoginResponse(
     val body: String?
 ) {
     val success: Boolean
-        get() = body?.contains("\"success\": true") == true
+        get() = body?.contains("\"success\": true") == true ||
+                body?.contains("\"success\":true") == true
 
     val userId: String?
         get() = body
@@ -16,4 +17,9 @@ data class LoginResponse(
         get() = body
             ?.substringAfter("\"user_name\": \"")
             ?.substringBefore("\"")
-}
+
+    val role: String?
+        get() = body
+            ?.substringAfter("\"role\": \"")
+            ?.substringBefore("\"")
+}

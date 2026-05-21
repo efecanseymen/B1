@@ -5,7 +5,9 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -13,7 +15,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.animateColorAsState
@@ -31,6 +37,7 @@ fun LoginScreen(
     val context = LocalContext.current
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showCreateDialog by remember { mutableStateOf(false) }
 
     val loginResult by viewModel.loginResult.observeAsState()
     val errorMessage by viewModel.errorMessage.observeAsState()
@@ -150,6 +157,199 @@ fun LoginScreen(
             shape = RoundedCornerShape(12.dp)
         ) {
             Text("Giriş Yap", fontSize = 16.sp)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextButton(onClick = { showCreateDialog = true }) {
+            Text(
+                text = "Hesabın yok mu? Hesap Oluştur",
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 14.sp
+            )
+        }
+    }
+
+    val createUserResult by viewModel.createUserResult.observeAsState()
+
+    LaunchedEffect(createUserResult) {
+        if (createUserResult?.success == true) {
+            Toast.makeText(context, "Hesap başarıyla oluşturuldu! Giriş yapabilirsiniz.", Toast.LENGTH_LONG).show()
+            showCreateDialog = false
+            viewModel.clearCreateUserResult()
+        } else if (createUserResult?.success == false) {
+            Toast.makeText(context, "Hesap oluşturulamadı. Lütfen tekrar deneyin.", Toast.LENGTH_SHORT).show()
+            viewModel.clearCreateUserResult()
+        }
+    }
+
+    if (showCreateDialog) {
+        CreateAccountDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreateAccount = { name, studentNo, email, pass ->
+                viewModel.createUser(
+                    userName = name,
+                    password = pass,
+                    role = "student",
+                    userId = studentNo,
+                    email = email
+                )
+            }
+        )
+    }
+}
+
+@Composable
+fun CreateAccountDialog(
+    onDismiss: () -> Unit,
+    onCreateAccount: (name: String, studentNo: String, email: String, password: String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var studentNo by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var errorText by remember { mutableStateOf<String?>(null) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .padding(vertical = 24.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Hesap Oluştur",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Bilgilerinizi girerek yeni hesap oluşturun",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it; errorText = null },
+                    label = { Text("Ad Soyad") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = studentNo,
+                    onValueChange = { studentNo = it; errorText = null },
+                    label = { Text("Öğrenci Numarası") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it; errorText = null },
+                    label = { Text("E-posta") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it; errorText = null },
+                    label = { Text("Şifre") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it; errorText = null },
+                    label = { Text("Şifre Tekrar") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation()
+                )
+
+                errorText?.let {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = it,
+                        color = Color(0xFFCF6679),
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = {
+                        when {
+                            name.isBlank() || studentNo.isBlank() || email.isBlank() || password.isBlank() ->
+                                errorText = "Lütfen tüm alanları doldurun"
+                            password != confirmPassword ->
+                                errorText = "Şifreler eşleşmiyor"
+                            password.length < 6 ->
+                                errorText = "Şifre en az 6 karakter olmalı"
+                            else ->
+                                onCreateAccount(name, studentNo, email, password)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Hesap Oluştur", fontSize = 16.sp)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        text = "Vazgeç",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
