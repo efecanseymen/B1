@@ -44,9 +44,10 @@ import com.efecanseymen.b1.viewmodel.HomeViewModel
 fun HomeScreen(
     viewModel: HomeViewModel, modifier: Modifier, onLogOutClick: () -> Unit
 ) {
-    val userName = "Efe"
+    var userName = viewModel.currentUserName ?: "Öğrenci"
 
-    val list1 = listOf<ClassInfo>(ClassInfo("BLM1001","Başarılı"),ClassInfo("BLM2545","Başarılı"),ClassInfo("BLM3344","Başarısız"))
+
+    val list1 = listOf<ClassInfo>(ClassInfo("BLM1001","%74 devamlılık"),ClassInfo("BLM2545","%0 devamlılık"),ClassInfo("BLM3344","%100 devamlılık"))
 
 
 
@@ -59,7 +60,7 @@ fun HomeScreen(
             title = {
                 Row {
                     Text(
-                        text = ("Hoşgeldin " + userName + "!"),
+                        text = ("Hoşgeldin " + userName.substringBefore(' ') + "!"),
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
