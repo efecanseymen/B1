@@ -9,6 +9,7 @@ import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.efecanseymen.b1.data.model.ReportPresenceBody
 import com.efecanseymen.b1.data.model.ReportPresenceRequest
 import com.efecanseymen.b1.data.network.RetrofitInstance
 import kotlinx.coroutines.*
@@ -94,7 +95,9 @@ class BleScannerService : Service() {
                 val r = RetrofitInstance.api.reportPresence(
                     ReportPresenceRequest(studentId, checkinId, sessionId)
                 )
-                val success = r.isSuccessful && r.body()?.success == true
+                // LambdaWrapper içindeki body'yi ReportPresenceBody'ye parse et
+                val body = if (r.isSuccessful) r.body()?.parse(ReportPresenceBody::class.java) else null
+                val success = body?.success == true
                 Log.d("BLE", "Presence report: ${if (success) "başarılı" else "başarısız"}")
 
                 // UI'a bildir
@@ -111,6 +114,7 @@ class BleScannerService : Service() {
             }
         }
     }
+
 
     private fun buildNotification(text: String): Notification {
         val channel = NotificationChannel(
