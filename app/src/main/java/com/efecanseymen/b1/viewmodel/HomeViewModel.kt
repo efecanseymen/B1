@@ -13,19 +13,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AttendanceRepository()
 
-    val loginResult    = MutableLiveData<LoginResponse?>()
-    val errorMessage   = MutableLiveData<String?>()
-    val isScanning     = MutableStateFlow(false)
-    val courses        = MutableLiveData<List<StudentCourseInfo>>(emptyList())
+    val loginResult      = MutableLiveData<LoginResponse?>()
+    val errorMessage     = MutableLiveData<String?>()
+    val isScanning       = MutableStateFlow(false)
+    val courses          = MutableLiveData<List<StudentCourseInfo>>(emptyList())
     val isLoadingCourses = MutableLiveData(false)
-    val presenceReported = MutableLiveData<String?>() // son bildirilen checkin_id
+    val presenceReported = MutableLiveData<String?>()
     val createUserResult = MutableLiveData<CreateUserResponse?>()
 
     var currentUserId: String?   = null
     var currentUserName: String? = null
     var currentUserRole: String? = null
 
-    // Aynı checkin_id için tekrar istek göndermeyi önler
     private val reportedCheckins = mutableSetOf<String>()
 
     // ---------- Auth ----------
@@ -64,40 +63,32 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun createUser(userName: String, password: String, role: String, userId: String?, email: String?) {
         viewModelScope.launch {
             try {
-                val response = repository.createUser(userName, password, role, userId, email)
-                if (response.isSuccessful) {
-                    createUserResult.value = response.body()
-                } else {
-                    errorMessage.value = "Hesap oluşturma hatası: ${response.code()}"
-                    createUserResult.value = CreateUserResponse(success = false, message = "Hata")
-                }
+                val result = repository.createUser(userName, password, role, userId, email)
+                createUserResult.value = result
             } catch (e: Exception) {
-                errorMessage.value = "Bağlantı hatası: ${e.message}"
-                createUserResult.value = CreateUserResponse(success = false, message = e.message ?: "Hata")
+                createUserResult.value = CreateUserResponse(false, e.message)
             }
         }
     }
 
-    fun clearCreateUserResult() {
-        createUserResult.value = null
-    }
+    fun clearCreateUserResult() { createUserResult.value = null }
 
     // ---------- Dersler ----------
 
     fun loadCourses() {
         val uid = currentUserId ?: run {
-            errorMessage.value = "Kullanıcı oturumu bulunamadı"
+            errorMessage.value = "Oturum bulunamadı, tekrar giriş yapın"
             return
         }
         isLoadingCourses.value = true
         viewModelScope.launch {
             try {
-                val r = repository.getCourses(uid)
-                if (r.isSuccessful && r.body()?.success == true) {
-                    courses.value = r.body()?.courses ?: emptyList()
+                val result = repository.getCourses(uid)
+                if (result?.success == true) {
+                    courses.value = result.courses ?: emptyList()
+                    errorMessage.value = null
                 } else {
-                    val errBody = r.errorBody()?.string() ?: r.body()?.toString() ?: ""
-                    errorMessage.value = "Yükleme hatası (HTTP ${r.code()}): $errBody"
+                    errorMessage.value = "Dersler yüklenemedi"
                 }
             } catch (e: Exception) {
                 errorMessage.value = "Bağlantı hatası: ${e.message}"
@@ -111,23 +102,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun reportPresence(sessionId: String, checkinId: String) {
         val uid = currentUserId ?: return
-        if (checkinId in reportedCheckins) return // tekrar gönderme
+        if (checkinId in reportedCheckins) return
         reportedCheckins.add(checkinId)
         viewModelScope.launch {
             try {
-                val r = repository.reportPresence(uid, checkinId, sessionId)
-                if (r.isSuccessful && r.body()?.success == true) {
+                val result = repository.reportPresence(uid, checkinId, sessionId)
+                if (result?.success == true) {
                     presenceReported.value = checkinId
                 } else {
-                    reportedCheckins.remove(checkinId) // başarısız → tekrar dene
+                    reportedCheckins.remove(checkinId)
                 }
             } catch (e: Exception) {
                 reportedCheckins.remove(checkinId)
-                errorMessage.value = "Bağlantı hatası: ${e.message}"
             }
         }
     }
 
-    fun startScan()  { isScanning.value = true  }
-    fun stopScan()   { isScanning.value = false }
+    fun startScan() { isScanning.value = true }
+    fun stopScan()  { isScanning.value = false }
 }

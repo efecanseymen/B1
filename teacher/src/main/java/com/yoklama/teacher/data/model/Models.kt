@@ -1,5 +1,19 @@
 package com.yoklama.teacher.data.model
 
+import com.google.gson.Gson
+
+// --- Lambda Wrapper (tüm cevaplar bu formatta gelir) ---
+data class LambdaWrapper(
+    val statusCode: Int?,
+    val body: String?
+) {
+    val isSuccess: Boolean get() = statusCode == 200 && body?.contains("\"success\": true") == true
+    fun <T> parse(clazz: Class<T>): T? = try {
+        body?.let { Gson().fromJson(it, clazz) }
+    } catch (e: Exception) { null }
+}
+
+// --- Auth ---
 data class LoginRequest(val username: String, val password: String)
 
 data class LoginResponse(
@@ -7,22 +21,17 @@ data class LoginResponse(
     val body: String?
 ) {
     val success: Boolean get() = body?.contains("\"success\": true") == true
-    val userId: String? get() = body?.substringAfter("\"user_id\": \"")?.substringBefore("\"")
+    val userId: String?   get() = body?.substringAfter("\"user_id\": \"")?.substringBefore("\"")
     val userName: String? get() = body?.substringAfter("\"user_name\": \"")?.substringBefore("\"")
-    val role: String? get() = body?.substringAfter("\"role\": \"")?.substringBefore("\"")
+    val role: String?     get() = body?.substringAfter("\"role\": \"")?.substringBefore("\"")
 }
 
+// --- Session ---
 data class StartSessionRequest(val teacher_id: String, val course_code: String)
-
-data class StartSessionResponse(
-    val success: Boolean,
-    val session_id: String?,
-    val message: String?
-)
+data class StartSessionBody(val success: Boolean, val session_id: String?, val message: String?)
 
 data class TriggerCheckinRequest(val session_id: String)
-
-data class TriggerCheckinResponse(
+data class TriggerCheckinBody(
     val success: Boolean,
     val checkin_id: String?,
     val checkin_number: Int?,
@@ -30,7 +39,6 @@ data class TriggerCheckinResponse(
 )
 
 data class EndSessionRequest(val session_id: String)
-
 data class StudentResult(
     val student_id: String,
     val student_name: String,
@@ -39,8 +47,7 @@ data class StudentResult(
     val percentage: Double,
     val status: String
 )
-
-data class EndSessionResponse(
+data class EndSessionBody(
     val success: Boolean,
     val session_id: String?,
     val total_checkins: Int?,
@@ -48,8 +55,8 @@ data class EndSessionResponse(
     val message: String?
 )
 
+// --- Rapor ---
 data class SessionReportRequest(val teacher_id: String, val course_code: String)
-
 data class StudentReportItem(
     val student_id: String,
     val student_name: String,
@@ -57,27 +64,21 @@ data class StudentReportItem(
     val total_sessions: Int,
     val percentage: Double
 )
-
-data class SessionReportResponse(
+data class SessionReportBody(
     val success: Boolean,
     val course_code: String?,
     val total_sessions: Int?,
     val students: List<StudentReportItem>?
 )
 
-// Kurs modelleri
-data class GetCoursesRequest(
-    val teacher_id: String? = null,
-    val student_id: String? = null
-)
+// --- Kurslar ---
+data class GetCoursesRequest(val teacher_id: String? = null, val student_id: String? = null)
+data class CourseItem(val course_code: String, val course_name: String, val teacher_id: String)
+data class GetCoursesBody(val success: Boolean, val courses: List<CourseItem>?)
 
-data class CourseItem(
-    val course_code: String,
-    val course_name: String,
-    val teacher_id: String
-)
-
-data class GetCoursesResponse(
-    val success: Boolean,
-    val courses: List<CourseItem>?
-)
+// Eski isimler için alias (ReportScreen uyumluluğu)
+typealias StartSessionResponse = StartSessionBody
+typealias TriggerCheckinResponse = TriggerCheckinBody
+typealias EndSessionResponse = EndSessionBody
+typealias SessionReportResponse = SessionReportBody
+typealias GetCoursesResponse = GetCoursesBody

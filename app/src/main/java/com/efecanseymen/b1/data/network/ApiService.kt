@@ -14,14 +14,16 @@ interface ApiService {
     suspend fun sync(@Body request: SyncRequest): Response<SyncResponse>
 
     @POST("create-user")
-    suspend fun createUser(@Body request: CreateUserRequest): Response<CreateUserResponse>
+    suspend fun createUser(@Body request: CreateUserRequest): Response<LambdaWrapper>
 
     @POST("get-attendance")
-    suspend fun getAttendance(@Body request: GetAttendanceRequest): Response<GetAttendanceResponse>
+    suspend fun getAttendance(@Body request: GetAttendanceRequest): Response<LambdaWrapper>
 
+    // getCourses → wrapper döner, body içinde StudentCoursesBody var
     @POST("get-courses")
-    suspend fun getCourses(@Body request: GetCoursesRequest): Response<StudentCoursesResponse>
+    suspend fun getCourses(@Body request: GetCoursesRequest): Response<LambdaWrapper>
 
+    // report-presence → wrapper döner, body içinde ReportPresenceBody var
     @POST("report-presence")
-    suspend fun reportPresence(@Body request: ReportPresenceRequest): Response<ReportPresenceResponse>
+    suspend fun reportPresence(@Body request: ReportPresenceRequest): Response<LambdaWrapper>
 }

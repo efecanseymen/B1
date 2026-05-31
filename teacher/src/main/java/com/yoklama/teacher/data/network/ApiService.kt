@@ -11,17 +11,17 @@ interface ApiService {
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
 
     @POST("start-session")
-    suspend fun startSession(@Body request: StartSessionRequest): Response<StartSessionResponse>
+    suspend fun startSession(@Body request: StartSessionRequest): Response<LambdaWrapper>
 
     @POST("trigger-checkin")
-    suspend fun triggerCheckin(@Body request: TriggerCheckinRequest): Response<TriggerCheckinResponse>
+    suspend fun triggerCheckin(@Body request: TriggerCheckinRequest): Response<LambdaWrapper>
 
     @POST("end-session")
-    suspend fun endSession(@Body request: EndSessionRequest): Response<EndSessionResponse>
+    suspend fun endSession(@Body request: EndSessionRequest): Response<LambdaWrapper>
 
     @POST("get-session-report")
-    suspend fun getSessionReport(@Body request: SessionReportRequest): Response<SessionReportResponse>
+    suspend fun getSessionReport(@Body request: SessionReportRequest): Response<LambdaWrapper>
 
     @POST("get-courses")
-    suspend fun getCourses(@Body request: GetCoursesRequest): Response<GetCoursesResponse>
+    suspend fun getCourses(@Body request: GetCoursesRequest): Response<LambdaWrapper>
 }

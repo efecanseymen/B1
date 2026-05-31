@@ -18,7 +18,7 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
     // Auth
     val loginResult   = MutableLiveData<LoginResponse?>()
     val errorMessage  = MutableLiveData<String?>()
-    var currentTeacherId: String? = null
+    var currentTeacherId: String?   = null
     var currentTeacherName: String? = null
 
     // Kurslar
@@ -26,15 +26,15 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
     val isLoadingCourses = MutableLiveData(false)
 
     // Session state
-    val sessionStarted    = MutableLiveData<StartSessionResponse?>()
-    val checkinTriggered  = MutableLiveData<TriggerCheckinResponse?>()
-    val sessionEnded      = MutableLiveData<EndSessionResponse?>()
-    val sessionReport     = MutableLiveData<SessionReportResponse?>()
+    val sessionStarted   = MutableLiveData<StartSessionBody?>()
+    val checkinTriggered = MutableLiveData<TriggerCheckinBody?>()
+    val sessionEnded     = MutableLiveData<EndSessionBody?>()
+    val sessionReport    = MutableLiveData<SessionReportBody?>()
 
-    var currentSessionId: String?   = null
-    var currentCheckinId: String?   = null
-    var currentCourseCode: String?  = null
-    var currentCourseName: String?  = null
+    var currentSessionId: String?  = null
+    var currentCheckinId: String?  = null
+    var currentCourseCode: String? = null
+    var currentCourseName: String? = null
     val checkinCount      = MutableLiveData(0)
     val isSessionActive   = MutableLiveData(false)
     val isStartingSession = MutableLiveData(false)
@@ -46,20 +46,15 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
     fun login(username: String, password: String) {
         viewModelScope.launch {
             try {
-                val r = repo.login(username, password)
-                if (r.isSuccessful) {
-                    val body = r.body()
-                    if (body?.success == true && body.role == "teacher") {
-                        currentTeacherId  = body.userId
-                        currentTeacherName = body.userName
-                        loginResult.value = body
-                    } else if (body?.role == "student") {
-                        errorMessage.value = "Bu uygulama öğretmenler içindir."
-                    } else {
-                        loginResult.value = body
-                    }
+                val body = repo.login(username, password)
+                if (body?.success == true && body.role == "teacher") {
+                    currentTeacherId   = body.userId
+                    currentTeacherName = body.userName
+                    loginResult.value  = body
+                } else if (body?.role == "student") {
+                    errorMessage.value = "Bu uygulama öğretmenler içindir."
                 } else {
-                    errorMessage.value = "Giriş hatası: ${r.code()}"
+                    loginResult.value = body
                 }
             } catch (e: Exception) {
                 errorMessage.value = "Bağlantı hatası: ${e.message}"
@@ -67,10 +62,7 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun clearLogin() {
-        loginResult.value = null
-        errorMessage.value = null
-    }
+    fun clearLogin() { loginResult.value = null; errorMessage.value = null }
 
     fun logout() {
         stopAutoCheckin(); stopBle()
@@ -87,9 +79,13 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
         isLoadingCourses.value = true
         viewModelScope.launch {
             try {
-                val r = repo.getCoursesByTeacher(tid)
-                if (r.isSuccessful) teacherCourses.value = r.body()?.courses ?: emptyList()
-                else errorMessage.value = "Dersler yüklenemedi"
+                val result = repo.getCoursesByTeacher(tid)
+                if (result?.success == true) {
+                    teacherCourses.value = result.courses ?: emptyList()
+                    errorMessage.value = null
+                } else {
+                    errorMessage.value = "Dersler yüklenemedi"
+                }
             } catch (e: Exception) {
                 errorMessage.value = "Bağlantı hatası: ${e.message}"
             } finally {
@@ -109,17 +105,16 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
         errorMessage.value = null
         viewModelScope.launch {
             try {
-                val r = repo.startSession(teacherId, courseCode)
-                if (r.isSuccessful && r.body()?.success == true) {
-                    val body = r.body()!!
+                val body = repo.startSession(teacherId, courseCode)
+                if (body?.success == true) {
                     currentSessionId  = body.session_id
                     currentCourseCode = courseCode
                     currentCourseName = courseName
                     isSessionActive.value = true
-                    sessionStarted.value  = body   // ← bu tetiklenince navigate olunacak
-                    triggerCheckin()               // ilk yoklama
+                    sessionStarted.value  = body
+                    triggerCheckin()
                 } else {
-                    errorMessage.value = r.body()?.message ?: "Ders başlatılamadı"
+                    errorMessage.value = body?.message ?: "Ders başlatılamadı"
                 }
             } catch (e: Exception) {
                 errorMessage.value = "Bağlantı hatası: ${e.message}"
@@ -133,10 +128,9 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
         val sessionId = currentSessionId ?: return
         viewModelScope.launch {
             try {
-                val r = repo.triggerCheckin(sessionId)
-                if (r.isSuccessful && r.body()?.success == true) {
-                    val body = r.body()!!
-                    currentCheckinId  = body.checkin_id
+                val body = repo.triggerCheckin(sessionId)
+                if (body?.success == true) {
+                    currentCheckinId = body.checkin_id
                     checkinCount.value = body.checkin_number ?: 0
                     checkinTriggered.value = body
                     updateBleCheckin(body.checkin_id ?: "")
@@ -181,13 +175,13 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             try {
-                val r = repo.endSession(sessionId)
-                if (r.isSuccessful) {
+                val body = repo.endSession(sessionId)
+                if (body != null) {
                     stopAutoCheckin(); stopBle()
                     isSessionActive.value = false
-                    sessionEnded.value = r.body()
+                    sessionEnded.value = body
                 } else {
-                    errorMessage.value = "Ders bitirilemedi: ${r.code()}"
+                    errorMessage.value = "Ders bitirilemedi"
                 }
             } catch (e: Exception) {
                 errorMessage.value = "Bağlantı hatası: ${e.message}"
@@ -199,8 +193,8 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
         val teacherId = currentTeacherId ?: return
         viewModelScope.launch {
             try {
-                val r = repo.getSessionReport(teacherId, courseCode)
-                if (r.isSuccessful) sessionReport.value = r.body()
+                val body = repo.getSessionReport(teacherId, courseCode)
+                if (body != null) sessionReport.value = body
             } catch (e: Exception) {
                 errorMessage.value = "Rapor yüklenemedi: ${e.message}"
             }
