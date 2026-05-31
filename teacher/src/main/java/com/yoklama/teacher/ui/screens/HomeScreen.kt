@@ -56,7 +56,8 @@ fun HomeScreen(
                 },
                 actions = {
                     IconButton(onClick = onLogout) {
-                        Icon(Icons.Filled.Logout, contentDescription = "Çıkış")
+                        Icon(Icons.Filled.Logout, contentDescription = "Çıkış",
+                            modifier = Modifier.size(28.dp))
                     }
                 }
             )
@@ -65,7 +66,20 @@ fun HomeScreen(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when {
                 isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                courses.isEmpty() -> EmptyCoursesMessage(modifier = Modifier.align(Alignment.Center))
+                courses.isEmpty() -> Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    EmptyCoursesMessage()
+                    errorMessage?.let { msg ->
+                        Spacer(Modifier.height(8.dp))
+                        Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(onClick = { viewModel.loadTeacherCourses() }) {
+                        Text("Tekrar Dene")
+                    }
+                }
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),

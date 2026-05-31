@@ -1,13 +1,6 @@
 package com.efecanseymen.b1.data.network
 
-import com.efecanseymen.b1.data.model.CreateUserRequest
-import com.efecanseymen.b1.data.model.CreateUserResponse
-import com.efecanseymen.b1.data.model.GetAttendanceRequest
-import com.efecanseymen.b1.data.model.GetAttendanceResponse
-import com.efecanseymen.b1.data.model.LoginRequest
-import com.efecanseymen.b1.data.model.LoginResponse
-import com.efecanseymen.b1.data.model.SyncRequest
-import com.efecanseymen.b1.data.model.SyncResponse
+import com.efecanseymen.b1.data.model.*
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.POST
@@ -25,4 +18,10 @@ interface ApiService {
 
     @POST("get-attendance")
     suspend fun getAttendance(@Body request: GetAttendanceRequest): Response<GetAttendanceResponse>
-}
+
+    @POST("get-courses")
+    suspend fun getCourses(@Body request: GetCoursesRequest): Response<StudentCoursesResponse>
+
+    @POST("report-presence")
+    suspend fun reportPresence(@Body request: ReportPresenceRequest): Response<ReportPresenceResponse>
+}

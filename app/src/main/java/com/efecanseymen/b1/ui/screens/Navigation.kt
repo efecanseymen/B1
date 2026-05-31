@@ -1,6 +1,6 @@
 package com.efecanseymen.b1.ui.screens
 
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -10,10 +10,8 @@ import com.efecanseymen.b1.viewmodel.HomeViewModel
 fun Navigation(viewModel: HomeViewModel) {
     val navController = rememberNavController()
 
-    NavHost(
-        navController = navController,
-        startDestination = "login"
-    ) {
+    NavHost(navController = navController, startDestination = "login") {
+
         composable("login") {
             LoginScreen(
                 viewModel = viewModel,
@@ -24,13 +22,14 @@ fun Navigation(viewModel: HomeViewModel) {
                 }
             )
         }
+
         composable("main") {
             MainScreen(
                 viewModel = viewModel,
                 onLogOutClick = {
                     viewModel.logout()
                     navController.navigate("login") {
-                        popUpTo("home") { inclusive = true }
+                        popUpTo("main") { inclusive = true }  // ← düzeltildi (home → main)
                     }
                 }
             )
