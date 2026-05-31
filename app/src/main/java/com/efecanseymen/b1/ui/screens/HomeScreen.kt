@@ -30,26 +30,25 @@ fun HomeScreen(
     modifier: Modifier,
     onLogOutClick: () -> Unit
 ) {
-    val userName       = viewModel.currentUserName ?: "Öğrenci"
-    val courses        by viewModel.courses.observeAsState(emptyList())
-    val isLoading      by viewModel.isLoadingCourses.observeAsState(false)
-    val errorMessage   by viewModel.errorMessage.observeAsState()
+    val userName     = viewModel.currentUserName ?: "Öğrenci"
+    val courses      by viewModel.courses.observeAsState(emptyList())
+    val isLoading    by viewModel.isLoadingCourses.observeAsState(false)
+    val errorMessage by viewModel.errorMessage.observeAsState()
 
     LaunchedEffect(Unit) { viewModel.loadCourses() }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-
-        // TopAppBar
-        TopAppBar(
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+    // Scaffold ile edge-to-edge düzgün çalışır, TopAppBar status bar'ın altında kalır
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
                     Text(
                         text = "Hoşgeldin ${userName.substringBefore(' ')}!",
                         fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(start = 5.dp)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(Modifier.weight(1f))
+                },
+                actions = {
                     IconButton(onClick = onLogOutClick) {
                         Icon(
                             imageVector = Icons.Filled.Logout,
@@ -59,50 +58,70 @@ fun HomeScreen(
                         )
                     }
                 }
-            },
-            modifier = Modifier.height(65.dp).fillMaxWidth()
-        )
-
-        // Başlık bandı
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(vertical = 8.dp)
-        ) {
-            Text(
-                text = if (isLoading) "Yükleniyor..." else "Derslerim (${courses.size})",
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    ) { padding ->
 
-        when {
-            isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // Başlık bandı
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(vertical = 8.dp)
+            ) {
+                Text(
+                    text = if (isLoading) "Yükleniyor..." else "Derslerim (${courses.size})",
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            courses.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Filled.School, null,
-                        modifier = Modifier.size(56.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-                    Spacer(Modifier.height(8.dp))
-                    Text("Kayıtlı ders bulunamadı",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    errorMessage?.let {
-                        Spacer(Modifier.height(4.dp))
-                        Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+
+            when {
+                isLoading -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) { CircularProgressIndicator() }
+
+                courses.isEmpty() -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Filled.School, null,
+                            modifier = Modifier.size(56.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Kayıtlı ders bulunamadı",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        errorMessage?.let {
+                            Spacer(Modifier.height(4.dp))
+                            Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedButton(onClick = { viewModel.loadCourses() }) {
+                            Text("Tekrar Dene")
+                        }
                     }
                 }
-            }
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)
-            ) {
-                items(courses) { course -> CourseListItem(course) }
+
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)
+                ) {
+                    items(courses) { course -> CourseListItem(course) }
+                }
             }
         }
     }
@@ -124,7 +143,6 @@ fun CourseListItem(course: StudentCourseInfo) {
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
-            // Renkli şerit
             Box(
                 modifier = Modifier
                     .width(4.dp)
@@ -137,17 +155,17 @@ fun CourseListItem(course: StudentCourseInfo) {
                     .weight(1f)
             ) {
                 Text(course.course_name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(course.course_code, fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    course.course_code, fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.height(4.dp))
                 val statusText = if (course.total_sessions == 0)
                     "Henüz ders yok"
                 else
                     "${course.present_sessions}/${course.total_sessions} ders — %${pct.toInt()} devamlılık"
-                Text(statusText, fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(statusText, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            // Yüzde rozeti
             if (course.total_sessions > 0) {
                 Box(
                     modifier = Modifier
