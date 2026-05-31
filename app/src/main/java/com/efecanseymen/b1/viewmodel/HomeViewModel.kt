@@ -19,6 +19,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val courses        = MutableLiveData<List<StudentCourseInfo>>(emptyList())
     val isLoadingCourses = MutableLiveData(false)
     val presenceReported = MutableLiveData<String?>() // son bildirilen checkin_id
+    val createUserResult = MutableLiveData<CreateUserResponse?>()
 
     var currentUserId: String?   = null
     var currentUserName: String? = null
@@ -60,10 +61,34 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         errorMessage.value = null
     }
 
+    fun createUser(userName: String, password: String, role: String, userId: String?, email: String?) {
+        viewModelScope.launch {
+            try {
+                val response = repository.createUser(userName, password, role, userId, email)
+                if (response.isSuccessful) {
+                    createUserResult.value = response.body()
+                } else {
+                    errorMessage.value = "Hesap oluşturma hatası: ${response.code()}"
+                    createUserResult.value = CreateUserResponse(success = false, message = "Hata")
+                }
+            } catch (e: Exception) {
+                errorMessage.value = "Bağlantı hatası: ${e.message}"
+                createUserResult.value = CreateUserResponse(success = false, message = e.message ?: "Hata")
+            }
+        }
+    }
+
+    fun clearCreateUserResult() {
+        createUserResult.value = null
+    }
+
     // ---------- Dersler ----------
 
     fun loadCourses() {
-        val uid = currentUserId ?: return
+        val uid = currentUserId ?: run {
+            errorMessage.value = "Kullanıcı oturumu bulunamadı"
+            return
+        }
         isLoadingCourses.value = true
         viewModelScope.launch {
             try {
@@ -71,7 +96,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 if (r.isSuccessful && r.body()?.success == true) {
                     courses.value = r.body()?.courses ?: emptyList()
                 } else {
-                    errorMessage.value = "Dersler yüklenemedi"
+                    val errBody = r.errorBody()?.string() ?: r.body()?.toString() ?: ""
+                    errorMessage.value = "Yükleme hatası (HTTP ${r.code()}): $errBody"
                 }
             } catch (e: Exception) {
                 errorMessage.value = "Bağlantı hatası: ${e.message}"
