@@ -8,7 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
@@ -104,7 +104,7 @@ fun ActiveSessionScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, "Geri")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Geri")
                     }
                 },
                 actions = {
@@ -206,7 +206,7 @@ fun StudentResultCard(student: StudentResult) {
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(student.student_name, fontWeight = FontWeight.SemiBold)
-                Text("${student.present_count}/${student.total_checkins} yoklama",
+                Text("${student.checkins_attended}/${student.total_checkins} yoklama",
                     fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text("%${student.percentage.toInt()}",
