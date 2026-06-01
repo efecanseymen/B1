@@ -26,8 +26,8 @@ class TeacherRepository {
         return if (r.isSuccessful) r.body()?.parse(EndSessionBody::class.java) else null
     }
 
-    suspend fun getSessionReport(teacherId: String, courseCode: String): SessionReportBody? {
-        val r = api.getSessionReport(SessionReportRequest(teacherId, courseCode))
+    suspend fun getSessionReport(teacherId: String, courseCode: String, threshold: Double = 70.0): SessionReportBody? {
+        val r = api.getSessionReport(SessionReportRequest(teacherId, courseCode, threshold))
         return if (r.isSuccessful) r.body()?.parse(SessionReportBody::class.java) else null
     }
 

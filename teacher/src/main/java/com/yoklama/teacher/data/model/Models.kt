@@ -2,7 +2,7 @@ package com.yoklama.teacher.data.model
 
 import com.google.gson.Gson
 
-// --- Lambda Wrapper (tüm cevaplar bu formatta gelir) ---
+// --- Lambda Wrapper ---
 data class LambdaWrapper(
     val statusCode: Int?,
     val body: String?
@@ -15,7 +15,6 @@ data class LambdaWrapper(
 
 // --- Auth ---
 data class LoginRequest(val username: String, val password: String)
-
 data class LoginResponse(
     val statusCode: Int?,
     val body: String?
@@ -39,35 +38,62 @@ data class TriggerCheckinBody(
 )
 
 data class EndSessionRequest(val session_id: String)
+
+// Her öğrencinin o günkü sekan katılım sonucu
 data class StudentResult(
     val student_id: String,
     val student_name: String,
-    val present_count: Int,
-    val total_checkins: Int,
-    val percentage: Double,
-    val status: String
+    val checkins_attended: Int,  // o günkü katıldığı sekan sayısı
+    val total_checkins: Int,     // o günkü toplam sekan
+    val percentage: Double,      // sekan katılım %
+    val status: String           // "present" veya "absent"
 )
+
 data class EndSessionBody(
     val success: Boolean,
     val session_id: String?,
+    val course_code: String?,
+    val session_date: String?,
     val total_checkins: Int?,
+    val checkin_threshold: Double?,  // Kodda sabit sekan eşiği (örn. 70.0)
+    val total_students: Int?,
+    val present_count: Int?,
+    val absent_count: Int?,
     val results: List<StudentResult>?,
     val message: String?
 )
 
 // --- Rapor ---
-data class SessionReportRequest(val teacher_id: String, val course_code: String)
+data class SessionReportRequest(
+    val teacher_id: String,
+    val course_code: String,
+    val threshold: Double  // Öğretmenin girdiği devam eşiği
+)
+
+// Tek bir günün katılım kaydı
+data class DailyAttendance(
+    val date: String,
+    val session_id: String,
+    val status: String,      // "present" veya "absent"
+    val percentage: Double   // o günkü sekan katılım %
+)
+
+// Öğrencinin kurs genelindeki raporu
 data class StudentReportItem(
     val student_id: String,
     val student_name: String,
     val present_sessions: Int,
     val total_sessions: Int,
-    val percentage: Double
+    val percentage: Double,
+    val status: String,              // "passing" veya "failing"
+    val daily_attendance: List<DailyAttendance>?
 )
+
 data class SessionReportBody(
     val success: Boolean,
     val course_code: String?,
     val total_sessions: Int?,
+    val course_threshold: Double?,
     val students: List<StudentReportItem>?
 )
 
@@ -76,9 +102,9 @@ data class GetCoursesRequest(val teacher_id: String? = null, val student_id: Str
 data class CourseItem(val course_code: String, val course_name: String, val teacher_id: String)
 data class GetCoursesBody(val success: Boolean, val courses: List<CourseItem>?)
 
-// Eski isimler için alias (ReportScreen uyumluluğu)
-typealias StartSessionResponse = StartSessionBody
+// Alias'lar
+typealias StartSessionResponse  = StartSessionBody
 typealias TriggerCheckinResponse = TriggerCheckinBody
-typealias EndSessionResponse = EndSessionBody
+typealias EndSessionResponse    = EndSessionBody
 typealias SessionReportResponse = SessionReportBody
-typealias GetCoursesResponse = GetCoursesBody
+typealias GetCoursesResponse    = GetCoursesBody

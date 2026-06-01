@@ -189,14 +189,15 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun loadReport(courseCode: String) {
+    fun loadReport(courseCode: String, threshold: Double = 70.0) {
         val teacherId = currentTeacherId ?: return
         viewModelScope.launch {
             try {
-                val body = repo.getSessionReport(teacherId, courseCode)
+                val body = repo.getSessionReport(teacherId, courseCode, threshold)
                 if (body != null) sessionReport.value = body
+                else errorMessage.value = "Rapor yüklenemedi"
             } catch (e: Exception) {
-                errorMessage.value = "Rapor yüklenemedi: ${e.message}"
+                errorMessage.value = "Rapor hatası: ${e.message}"
             }
         }
     }
