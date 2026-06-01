@@ -1,30 +1,33 @@
 package com.efecanseymen.b1.viewmodel
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.efecanseymen.b1.data.model.CreateUserResponse
-import com.efecanseymen.b1.data.model.GetAttendanceResponse
-import com.efecanseymen.b1.data.model.LoginResponse
-import com.efecanseymen.b1.data.model.SyncResponse
+import com.efecanseymen.b1.data.model.*
 import com.efecanseymen.b1.data.repository.AttendanceRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
-class HomeViewModel : ViewModel() {
+class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AttendanceRepository()
 
-    val loginResult = MutableLiveData<LoginResponse?>()
-    val syncResult = MutableLiveData<SyncResponse?>()
+    val loginResult      = MutableLiveData<LoginResponse?>()
+    val errorMessage     = MutableLiveData<String?>()
+    val isScanning       = MutableStateFlow(false)
+    val courses          = MutableLiveData<List<StudentCourseInfo>>(emptyList())
+    val isLoadingCourses = MutableLiveData(false)
+    val presenceReported = MutableLiveData<String?>()
     val createUserResult = MutableLiveData<CreateUserResponse?>()
-    val getAttendanceResult = MutableLiveData<GetAttendanceResponse?>()
-    val errorMessage = MutableLiveData<String>()
-    val isScanning = MutableStateFlow(false)
 
-    var currentUserId: String? = null
+    var currentUserId: String?   = null
     var currentUserName: String? = null
     var currentUserRole: String? = null
+
+    private val reportedCheckins = mutableSetOf<String>()
+
+    // ---------- Auth ----------
 
     fun login(username: String, password: String) {
         viewModelScope.launch {
@@ -32,7 +35,7 @@ class HomeViewModel : ViewModel() {
                 val response = repository.login(username, password)
                 if (response.isSuccessful) {
                     val body = response.body()
-                    currentUserId = body?.userId
+                    currentUserId   = body?.userId
                     currentUserName = body?.userName
                     currentUserRole = body?.role
                     loginResult.value = body
@@ -45,34 +48,11 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    fun syncAttendance(userId: String, sessionId: String, timestamp: String) {
-        viewModelScope.launch {
-            try {
-                val response = repository.syncAttendance(userId, sessionId, timestamp)
-                if (response.isSuccessful) {
-                    syncResult.value = response.body()
-                } else {
-                    errorMessage.value = "Sync hatası: ${response.code()}"
-                }
-            } catch (e: Exception) {
-                errorMessage.value = "Bağlantı hatası: ${e.message}"
-            }
-        }
-    }
-
-    fun startScan() {
-        isScanning.value = true
-    }
-
-    fun stopScan() {
-        isScanning.value = false
-    }
-
     fun logout() {
         loginResult.value = null
-        currentUserId = null
-        currentUserName = null
-        currentUserRole = null
+        currentUserId = null; currentUserName = null; currentUserRole = null
+        courses.value = emptyList()
+        reportedCheckins.clear()
     }
 
     fun clearLoginResult() {
@@ -80,43 +60,64 @@ class HomeViewModel : ViewModel() {
         errorMessage.value = null
     }
 
-    fun createUser(
-        userName: String,
-        password: String,
-        role: String = "student",
-        userId: String? = null,
-        email: String? = null
-    ) {
+    fun createUser(userName: String, password: String, role: String, userId: String?, email: String?) {
         viewModelScope.launch {
             try {
-                val response = repository.createUser(userName, password, role, userId, email)
-                if (response.isSuccessful) {
-                    createUserResult.value = response.body()
-                } else {
-                    errorMessage.value = "Kayıt hatası: ${response.code()}"
-                }
+                val result = repository.createUser(userName, password, role, userId, email)
+                createUserResult.value = result
             } catch (e: Exception) {
-                errorMessage.value = "Bağlantı hatası: ${e.message}"
+                createUserResult.value = CreateUserResponse(false, e.message)
             }
         }
     }
 
-    fun getAttendance(role: String, studentId: String? = null, sessionId: String? = null) {
+    fun clearCreateUserResult() { createUserResult.value = null }
+
+    // ---------- Dersler ----------
+
+    fun loadCourses() {
+        val uid = currentUserId ?: run {
+            errorMessage.value = "Oturum bulunamadı, tekrar giriş yapın"
+            return
+        }
+        isLoadingCourses.value = true
         viewModelScope.launch {
             try {
-                val response = repository.getAttendance(role, studentId, sessionId)
-                if (response.isSuccessful) {
-                    getAttendanceResult.value = response.body()
+                val result = repository.getCourses(uid)
+                if (result?.success == true) {
+                    courses.value = result.courses ?: emptyList()
+                    errorMessage.value = null
                 } else {
-                    errorMessage.value = "Yoklama sorgu hatası: ${response.code()}"
+                    errorMessage.value = "Dersler yüklenemedi"
                 }
             } catch (e: Exception) {
                 errorMessage.value = "Bağlantı hatası: ${e.message}"
+            } finally {
+                isLoadingCourses.value = false
             }
         }
     }
 
-    fun clearCreateUserResult() {
-        createUserResult.value = null
+    // ---------- BLE Presence ----------
+
+    fun reportPresence(sessionId: String, checkinId: String) {
+        val uid = currentUserId ?: return
+        if (checkinId in reportedCheckins) return
+        reportedCheckins.add(checkinId)
+        viewModelScope.launch {
+            try {
+                val result = repository.reportPresence(uid, checkinId, sessionId)
+                if (result?.success == true) {
+                    presenceReported.value = checkinId
+                } else {
+                    reportedCheckins.remove(checkinId)
+                }
+            } catch (e: Exception) {
+                reportedCheckins.remove(checkinId)
+            }
+        }
     }
+
+    fun startScan() { isScanning.value = true }
+    fun stopScan()  { isScanning.value = false }
 }

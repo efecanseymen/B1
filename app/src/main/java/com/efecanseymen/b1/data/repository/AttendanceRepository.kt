@@ -1,13 +1,6 @@
 package com.efecanseymen.b1.data.repository
 
-import com.efecanseymen.b1.data.model.CreateUserRequest
-import com.efecanseymen.b1.data.model.CreateUserResponse
-import com.efecanseymen.b1.data.model.GetAttendanceRequest
-import com.efecanseymen.b1.data.model.GetAttendanceResponse
-import com.efecanseymen.b1.data.model.LoginRequest
-import com.efecanseymen.b1.data.model.LoginResponse
-import com.efecanseymen.b1.data.model.SyncRequest
-import com.efecanseymen.b1.data.model.SyncResponse
+import com.efecanseymen.b1.data.model.*
 import com.efecanseymen.b1.data.network.RetrofitInstance
 import retrofit2.Response
 
@@ -16,55 +9,34 @@ class AttendanceRepository {
     private val api = RetrofitInstance.api
 
     suspend fun login(username: String, password: String): Response<LoginResponse> {
-        val hashedPassword = hashSha256(password)
-        return api.login(LoginRequest(username, hashedPassword))
-    }
-
-    suspend fun syncAttendance(
-        userId: String,
-        sessionId: String,
-        timestamp: String
-    ): Response<SyncResponse> {
-        return api.sync(SyncRequest(userId, sessionId, timestamp))
+        return api.login(LoginRequest(username, hashSha256(password)))
     }
 
     suspend fun createUser(
-        userName: String,
-        password: String,
-        role: String = "student",
-        userId: String? = null,
-        email: String? = null
-    ): Response<CreateUserResponse> {
-        val hashedPassword = hashSha256(password)
-        return api.createUser(
-            CreateUserRequest(
-                user_name = userName,
-                password = hashedPassword,
-                role = role,
-                user_id = userId,
-                email = email
-            )
+        userName: String, password: String, role: String = "student",
+        userId: String? = null, email: String? = null
+    ): CreateUserResponse {
+        val r = api.createUser(
+            CreateUserRequest(userName, hashSha256(password), role, userId, email)
         )
+        return r.body()?.parse(CreateUserResponse::class.java)
+            ?: CreateUserResponse(false, "Sunucu hatası")
     }
 
-    suspend fun getAttendance(
-        role: String,
-        studentId: String? = null,
-        sessionId: String? = null
-    ): Response<GetAttendanceResponse> {
-        return api.getAttendance(
-            GetAttendanceRequest(
-                role = role,
-                student_id = studentId,
-                session_id = sessionId
-            )
-        )
+    suspend fun getCourses(studentId: String): StudentCoursesBody? {
+        val r = api.getCourses(GetCoursesRequest(studentId))
+        if (!r.isSuccessful) return null
+        return r.body()?.parse(StudentCoursesBody::class.java)
+    }
+
+    suspend fun reportPresence(studentId: String, checkinId: String, sessionId: String): ReportPresenceBody? {
+        val r = api.reportPresence(ReportPresenceRequest(studentId, checkinId, sessionId))
+        if (!r.isSuccessful) return null
+        return r.body()?.parse(ReportPresenceBody::class.java)
     }
 
     private fun hashSha256(input: String): String {
-        val bytes = java.security.MessageDigest
-            .getInstance("SHA-256")
-            .digest(input.toByteArray())
+        val bytes = java.security.MessageDigest.getInstance("SHA-256").digest(input.toByteArray())
         return bytes.joinToString("") { "%02x".format(it) }
     }
-}
+}
