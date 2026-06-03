@@ -20,6 +20,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val isLoadingCourses = MutableLiveData(false)
     val presenceReported = MutableLiveData<String?>()
     val createUserResult = MutableLiveData<CreateUserResponse?>()
+    val nfcTagData       = MutableLiveData<String?>()
+    val nfcAvailable     = MutableLiveData(false)
 
     var currentUserId: String?   = null
     var currentUserName: String? = null
@@ -120,4 +122,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startScan() { isScanning.value = true }
     fun stopScan()  { isScanning.value = false }
+
+    // ---------- NFC ----------
+
+    fun onNfcTagDetected(data: String) { nfcTagData.value = data }
+    fun clearNfcTag()                  { nfcTagData.value = null }
 }
