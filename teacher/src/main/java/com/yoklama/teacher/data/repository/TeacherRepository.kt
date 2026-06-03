@@ -36,6 +36,11 @@ class TeacherRepository {
         return if (r.isSuccessful) r.body()?.parse(GetCoursesBody::class.java) else null
     }
 
+    suspend fun getPresentStudents(sessionId: String): PresentStudentsBody? {
+        val r = api.getPresentStudents(PresentStudentsRequest(sessionId))
+        return if (r.isSuccessful) r.body()?.parse(PresentStudentsBody::class.java) else null
+    }
+
     private fun hashSha256(input: String): String {
         val bytes = java.security.MessageDigest.getInstance("SHA-256").digest(input.toByteArray())
         return bytes.joinToString("") { "%02x".format(it) }

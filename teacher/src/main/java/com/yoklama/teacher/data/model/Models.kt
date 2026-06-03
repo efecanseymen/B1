@@ -108,3 +108,19 @@ typealias TriggerCheckinResponse = TriggerCheckinBody
 typealias EndSessionResponse    = EndSessionBody
 typealias SessionReportResponse = SessionReportBody
 typealias GetCoursesResponse    = GetCoursesBody
+
+// --- Aktif Yoklamada Mevcut Öğrenciler ---
+data class PresentStudentsRequest(val session_id: String)
+
+data class PresentStudentItem(
+    val student_id: String,
+    val student_name: String,
+    val checkin_count: Int
+)
+
+data class PresentStudentsBody(
+    val success: Boolean,
+    val session_id: String?,
+    val present_count: Int?,
+    val students: List<PresentStudentItem>?
+)

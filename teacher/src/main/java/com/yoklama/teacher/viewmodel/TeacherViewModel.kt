@@ -30,6 +30,7 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
     val checkinTriggered = MutableLiveData<TriggerCheckinBody?>()
     val sessionEnded     = MutableLiveData<EndSessionBody?>()
     val sessionReport    = MutableLiveData<SessionReportBody?>()
+    val presentStudents  = MutableLiveData<List<PresentStudentItem>>(emptyList())
 
     var currentSessionId: String?  = null
     var currentCheckinId: String?  = null
@@ -40,6 +41,7 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
     val isStartingSession = MutableLiveData(false)
 
     private var autoCheckinJob: Job? = null
+    private var pollJob: Job? = null
 
     // ---------- Auth ----------
 
@@ -219,5 +221,25 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
         sessionStarted.value = null; sessionEnded.value = null
         currentSessionId = null; currentCourseCode = null; currentCourseName = null
         checkinCount.value = 0
+        presentStudents.value = emptyList()
     }
+
+    // Aktif yoklamada kimlerin bağlı olduğunu 5 saniyede bir sorgula
+    fun startPollingPresent() {
+        pollJob?.cancel()
+        pollJob = viewModelScope.launch {
+            while (isActive) {
+                val sid = currentSessionId ?: break
+                try {
+                    val body = repo.getPresentStudents(sid)
+                    if (body?.success == true) {
+                        presentStudents.value = body.students ?: emptyList()
+                    }
+                } catch (_: Exception) { /* polling hatasını yoksay */ }
+                delay(5_000L)
+            }
+        }
+    }
+
+    fun stopPollingPresent() { pollJob?.cancel(); pollJob = null }
 }

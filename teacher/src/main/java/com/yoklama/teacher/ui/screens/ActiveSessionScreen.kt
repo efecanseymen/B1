@@ -1,5 +1,10 @@
 package com.yoklama.teacher.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,9 +23,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import com.yoklama.teacher.data.model.PresentStudentItem
 import com.yoklama.teacher.data.model.StudentResult
 import com.yoklama.teacher.viewmodel.TeacherViewModel
 import kotlinx.coroutines.delay
@@ -32,25 +40,55 @@ fun ActiveSessionScreen(
     onSessionEnded: () -> Unit,
     onBack: () -> Unit
 ) {
+    val context          = LocalContext.current
     val checkinTriggered by viewModel.checkinTriggered.observeAsState()
     val sessionEnded     by viewModel.sessionEnded.observeAsState()
     val checkinCount     by viewModel.checkinCount.observeAsState(0)
     val errorMessage     by viewModel.errorMessage.observeAsState()
+    val presentStudents  by viewModel.presentStudents.observeAsState(emptyList())
     val courseName       = viewModel.currentCourseName ?: viewModel.currentCourseCode ?: "Ders"
 
-    // BLE'yi ilk checkin gelince başlat, sonraki yoklamalarda sadece payload güncellenir
+    // Android 12+ BLE yayın izinleri
+    val blePerms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+        arrayOf(Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_CONNECT)
+    else emptyArray()
+
+    val blePermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { granted ->
+        val allOk = granted.values.all { it }
+        if (allOk || blePerms.isEmpty()) {
+            val sid = viewModel.currentSessionId ?: return@rememberLauncherForActivityResult
+            val cid = viewModel.currentCheckinId ?: return@rememberLauncherForActivityResult
+            viewModel.startBle(sid, cid)
+            viewModel.startAutoCheckin()
+            viewModel.startPollingPresent()
+        }
+    }
+
+    // BLE'yi ilk checkin gelince başlat — runtime izin kontrolüyle
     LaunchedEffect(checkinTriggered) {
         val cid = checkinTriggered?.checkin_id ?: return@LaunchedEffect
         val sid = viewModel.currentSessionId   ?: return@LaunchedEffect
         if (checkinCount == 1) {
-            viewModel.startBle(sid, cid)
-            viewModel.startAutoCheckin()
+            val allGranted = blePerms.isEmpty() || blePerms.all {
+                ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+            }
+            if (allGranted) {
+                viewModel.startBle(sid, cid)
+                viewModel.startAutoCheckin()
+                viewModel.startPollingPresent()
+            } else {
+                blePermLauncher.launch(blePerms)
+            }
         }
     }
 
     LaunchedEffect(sessionEnded) {
-        // Lambda başarısız olsa bile session bitti, navigate et
-        if (sessionEnded != null) onSessionEnded()
+        if (sessionEnded != null) {
+            viewModel.stopPollingPresent()
+            onSessionEnded()
+        }
     }
 
     // Geri sayım sayacı (her yeni yoklamada sıfırla)
@@ -115,67 +153,89 @@ fun ActiveSessionScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // BLE göstergesi
-            Box(
-                modifier = Modifier
-                    .size(130.dp)
-                    .scale(pulseScale)
-                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.BluetoothSearching, null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary)
+            item {
+                Box(
+                    modifier = Modifier
+                        .size(130.dp)
+                        .scale(pulseScale)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.BluetoothSearching, null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(Modifier.height(4.dp))
+                Text("Bluetooth Yayını Aktif", fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary)
             }
-            Spacer(Modifier.height(8.dp))
-            Text("Bluetooth Yayını Aktif", fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary)
-
-            Spacer(Modifier.height(20.dp))
 
             // Sayaç kartları
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatCard("Yoklama", "$checkinCount", Modifier.weight(1f))
-                StatCard(
-                    "Sonraki",
-                    "${remainingSecs / 60}:${(remainingSecs % 60).toString().padStart(2, '0')}",
-                    Modifier.weight(1f)
-                )
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StatCard("Yoklama", "$checkinCount", Modifier.weight(1f))
+                    StatCard(
+                        "Sonraki",
+                        "${remainingSecs / 60}:${(remainingSecs % 60).toString().padStart(2, '0')}",
+                        Modifier.weight(1f)
+                    )
+                    StatCard("Mevcut", "${presentStudents.size}", Modifier.weight(1f))
+                }
             }
 
-            Spacer(Modifier.height(12.dp))
-
+            // Hata mesajı
             errorMessage?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                Spacer(Modifier.height(8.dp))
+                item {
+                    Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                }
+            }
+
+            // Aktif katılımcı listesi
+            if (presentStudents.isNotEmpty()) {
+                item {
+                    Text(
+                        "Katılımcılar (${presentStudents.size})",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                items(presentStudents) { student ->
+                    PresentStudentCard(student)
+                }
             }
 
             // Ders sonu sonuçlar
             sessionEnded?.results?.let { results ->
-                Spacer(Modifier.height(8.dp))
-                Text("Sonuçlar (${results.size} öğrenci)",
-                    fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(Modifier.height(8.dp))
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(results) { s -> StudentResultCard(s) }
+                item {
+                    Text("Sonuçlar (${results.size} öğrenci)",
+                        fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
+                items(results) { s -> StudentResultCard(s) }
             }
 
-            Spacer(Modifier.weight(1f))
-
-            Button(
-                onClick = { showEndDialog = true },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCF6679))
-            ) {
-                Icon(Icons.Filled.Stop, null)
-                Spacer(Modifier.width(8.dp))
-                Text("Dersi Bitir", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            // Dersi Bitir butonu
+            item {
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = { showEndDialog = true },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCF6679))
+                ) {
+                    Icon(Icons.Filled.Stop, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Dersi Bitir", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }
@@ -192,6 +252,34 @@ fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
             Text(value, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.primary)
             Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun PresentStudentCard(student: PresentStudentItem) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(Modifier.size(8.dp).background(Color(0xFF4CAF50), CircleShape))
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(student.student_name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text(student.student_id, fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                "${student.checkin_count} yoklama",
+                fontSize = 12.sp,
+                color = Color(0xFF4CAF50),
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }

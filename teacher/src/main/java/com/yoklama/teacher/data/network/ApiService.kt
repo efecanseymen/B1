@@ -24,4 +24,7 @@ interface ApiService {
 
     @POST("get-courses")
     suspend fun getCourses(@Body request: GetCoursesRequest): Response<LambdaWrapper>
+
+    @POST("get-present-students")
+    suspend fun getPresentStudents(@Body request: PresentStudentsRequest): Response<LambdaWrapper>
 }
