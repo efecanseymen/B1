@@ -13,11 +13,13 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.efecanseymen.b1.data.model.StudentAttendanceItem
 import com.efecanseymen.b1.data.model.StudentCourseInfo
 import com.efecanseymen.b1.viewmodel.HomeViewModel
 
@@ -37,7 +39,6 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) { viewModel.loadCourses() }
 
-    // Scaffold ile edge-to-edge düzgün çalışır, TopAppBar status bar'ın altında kalır
     Scaffold(
         topBar = {
             TopAppBar(
@@ -134,54 +135,158 @@ fun CourseListItem(course: StudentCourseInfo) {
         course.total_sessions == 0 -> MaterialTheme.colorScheme.outline
         pct >= 80 -> Color(0xFF4CAF50)
         pct >= 60 -> Color(0xFFFFC107)
-        else -> Color(0xFFCF6679)
+        else      -> Color(0xFFCF6679)
     }
+
+    // Günleri tarihe göre sırala
+    val sortedAttendance = course.attendance?.sortedBy { it.date }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .height(80.dp)
-                    .background(barColor, RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp))
-            )
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
-                    .weight(1f)
-            ) {
-                Text(course.course_name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(
-                    course.course_code, fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(4.dp))
-                val statusText = if (course.total_sessions == 0)
-                    "Henüz ders yok"
-                else
-                    "${course.present_sessions}/${course.total_sessions} ders — %${pct.toInt()} devamlılık"
-                Text(statusText, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (course.total_sessions > 0) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+
+            // ── Üst satır: renkli çizgi + bilgi + yüzde ──
+            Row(modifier = Modifier.fillMaxWidth()) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.CenterVertically)
-                        .padding(end = 14.dp)
-                        .background(barColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .width(4.dp)
+                        .height(if (sortedAttendance.isNullOrEmpty()) 72.dp else 72.dp)
+                        .background(barColor, RoundedCornerShape(topStart = 14.dp, bottomStart = if (sortedAttendance.isNullOrEmpty()) 14.dp else 0.dp))
+                )
+                Column(
+                    modifier = Modifier
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .weight(1f)
+                ) {
+                    Text(course.course_name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(
+                        course.course_code, fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    val statusText = if (course.total_sessions == 0)
+                        "Henüz ders yok"
+                    else
+                        "${course.present_sessions}/${course.total_sessions} ders — %${pct.toInt()} devamlılık"
+                    Text(statusText, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (course.total_sessions > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterVertically)
+                            .padding(end = 14.dp)
+                            .background(barColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            "%${pct.toInt()}",
+                            fontWeight = FontWeight.ExtraBold,
+                            color = barColor,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            }
+
+            // ── Gün-Gün Katılım Bandı ──
+            if (!sortedAttendance.isNullOrEmpty()) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        "%${pct.toInt()}",
-                        fontWeight = FontWeight.ExtraBold,
-                        color = barColor,
-                        fontSize = 16.sp
+                        "Gün-Gün Katılım",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
                     )
+                    Spacer(Modifier.height(6.dp))
+
+                    // Her satıra max 10 gün sığdır
+                    sortedAttendance.chunked(10).forEachIndexed { chunkIndex, chunk ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            chunk.forEachIndexed { i, day ->
+                                val globalIndex = chunkIndex * 10 + i
+                                StudentDayChip(
+                                    dayIndex = globalIndex + 1,
+                                    item     = day,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            // Sıranın geri kalanını boş doldur
+                            repeat(10 - chunk.size) {
+                                Box(modifier = Modifier.weight(1f))
+                            }
+                        }
+                        if (chunkIndex < sortedAttendance.chunked(10).size - 1) {
+                            Spacer(Modifier.height(3.dp))
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+                    // Açıklama
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StudentLegendItem(Color(0xFF4CAF50), "Katıldı")
+                        StudentLegendItem(Color(0xFFCF6679), "Katılmadı")
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun StudentDayChip(dayIndex: Int, item: StudentAttendanceItem, modifier: Modifier = Modifier) {
+    val isPresent = item.status == "present"
+    val color = if (isPresent) Color(0xFF4CAF50) else Color(0xFFCF6679)
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .clip(RoundedCornerShape(5.dp))
+                .background(color.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (isPresent) "✓" else "✗",
+                color = color,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+        }
+        Text(
+            text = "$dayIndex",
+            fontSize = 8.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun StudentLegendItem(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(9.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(color)
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
