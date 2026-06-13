@@ -23,8 +23,8 @@ fun MainScreen(viewModel: HomeViewModel, onLogOutClick: () -> Unit){
 
     val tabs = listOf(
         Triple("Ana Sayfa", Icons.Filled.Home, 0),
-        Triple("Yoklama", Icons.Filled.AssignmentTurnedIn, 1),
-        Triple("Hangi Derslik", Icons.Filled.Nfc, 2)
+        Triple("Hangi Derslik", Icons.Filled.AssignmentTurnedIn, 1),
+        Triple("Yoklama", Icons.Filled.Nfc, 2)
     )
 
     Scaffold(
