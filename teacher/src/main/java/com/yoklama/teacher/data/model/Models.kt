@@ -110,7 +110,7 @@ typealias SessionReportResponse = SessionReportBody
 typealias GetCoursesResponse    = GetCoursesBody
 
 // --- Aktif Yoklamada Mevcut Öğrenciler ---
-data class PresentStudentsRequest(val session_id: String)
+data class PresentStudentsRequest(val session_id: String, val checkin_id: String? = null)
 
 data class PresentStudentItem(
     val student_id: String,

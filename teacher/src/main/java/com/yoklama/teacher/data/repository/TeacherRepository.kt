@@ -36,8 +36,8 @@ class TeacherRepository {
         return if (r.isSuccessful) r.body()?.parse(GetCoursesBody::class.java) else null
     }
 
-    suspend fun getPresentStudents(sessionId: String): PresentStudentsBody? {
-        val r = api.getPresentStudents(PresentStudentsRequest(sessionId))
+    suspend fun getPresentStudents(sessionId: String, checkinId: String?): PresentStudentsBody? {
+        val r = api.getPresentStudents(PresentStudentsRequest(sessionId, checkinId))
         return if (r.isSuccessful) r.body()?.parse(PresentStudentsBody::class.java) else null
     }
 

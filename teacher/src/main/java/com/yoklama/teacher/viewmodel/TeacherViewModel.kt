@@ -230,8 +230,9 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
         pollJob = viewModelScope.launch {
             while (isActive) {
                 val sid = currentSessionId ?: break
+                val cid = currentCheckinId          // null olabilir, Lambda opsiyonel kabul eder
                 try {
-                    val body = repo.getPresentStudents(sid)
+                    val body = repo.getPresentStudents(sid, cid)
                     if (body?.success == true) {
                         presentStudents.value = body.students ?: emptyList()
                     }
