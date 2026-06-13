@@ -253,7 +253,7 @@ fun StudentAttendanceCard(student: StudentReportItem, threshold: Double) {
             )
 
             // Gün-gün katılım bandı
-            val daily = student.daily_attendance
+            val daily = student.daily_attendance?.sortedBy { it.date }
             if (!daily.isNullOrEmpty()) {
                 Spacer(Modifier.height(10.dp))
                 Text("Gün-Gün Katılım:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
