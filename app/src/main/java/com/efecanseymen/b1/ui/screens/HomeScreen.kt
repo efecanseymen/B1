@@ -1,9 +1,11 @@
 package com.efecanseymen.b1.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Logout
@@ -68,20 +70,41 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Başlık bandı
-            Box(
+            // Şık Derslerim Başlığı
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(vertical = 8.dp)
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = if (isLoading) "Yükleniyor..." else "Derslerim (${courses.size})",
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.School,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = "Kayıtlı Derslerim",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = if (isLoading) "Programın güncelleniyor..." else "Toplam ${courses.size} ders bulunuyor",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
 
             when {
@@ -94,23 +117,41 @@ fun HomeScreen(
                     Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Filled.School, null,
-                            modifier = Modifier.size(56.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.size(80.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.School, null,
+                                modifier = Modifier.padding(20.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "Kayıtlı ders bulunamadı",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "Kayıtlı ders bulunamadı",
+                            "Henüz bir derse kayıtlı değilsin veya ders programın güncelleniyor.",
+                            textAlign = TextAlign.Center,
+                            fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         errorMessage?.let {
-                            Spacer(Modifier.height(4.dp))
-                            Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                            Spacer(Modifier.height(12.dp))
+                            Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
                         }
-                        Spacer(Modifier.height(12.dp))
-                        OutlinedButton(onClick = { viewModel.loadCourses() }) {
+                        Spacer(Modifier.height(24.dp))
+                        FilledTonalButton(onClick = { viewModel.loadCourses() }) {
                             Text("Tekrar Dene")
                         }
                     }
@@ -131,156 +172,158 @@ fun HomeScreen(
 @Composable
 fun CourseListItem(course: StudentCourseInfo) {
     val pct = course.overall_percentage
-    val barColor = when {
-        course.total_sessions == 0 -> MaterialTheme.colorScheme.outline
-        pct >= 80 -> Color(0xFF4CAF50)
-        pct >= 60 -> Color(0xFFFFC107)
-        else      -> Color(0xFFCF6679)
+    val isNoSession = course.total_sessions == 0
+    val containerColor = MaterialTheme.colorScheme.surface
+    val statusColor = when {
+        isNoSession -> MaterialTheme.colorScheme.outlineVariant
+        pct >= 80 -> Color(0xFF2E7D32) // Soft Green
+        pct >= 60 -> Color(0xFFF57F17) // Soft Orange
+        else      -> MaterialTheme.colorScheme.error
     }
 
-    // Günleri tarihe göre sırala
     val sortedAttendance = course.attendance?.sortedBy { it.date }
 
-    Card(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        elevation = CardDefaults.cardElevation(2.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.outlinedCardColors(containerColor = containerColor),
+        border = BorderStroke(
+            width = 1.dp, 
+            color = if (isNoSession) MaterialTheme.colorScheme.outlineVariant else statusColor.copy(alpha = 0.5f)
+        )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-        ) {
-            // ── Renkli çizgi — tam kart yüksekliğini kaplar ──
-            Box(
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // -- Üst Bölüm (Ders Bilgisi) --
+            Row(
                 modifier = Modifier
-                    .width(4.dp)
-                    .fillMaxHeight()
-                    .background(barColor, RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp))
-            )
-
-            // ── Kart içeriği ──
-            Column(modifier = Modifier.weight(1f)) {
-
-                // ── Üst satır: bilgi + yüzde ──
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Ders Yüzde İkonu
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(if (isNoSession) MaterialTheme.colorScheme.surfaceVariant else statusColor.copy(alpha = 0.12f), CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .padding(horizontal = 14.dp, vertical = 10.dp)
-                            .weight(1f)
-                    ) {
-                        Text(course.course_name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text(
-                            course.course_code, fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        val statusText = if (course.total_sessions == 0)
-                            "Henüz ders yok"
-                        else
-                            "${course.present_sessions}/${course.total_sessions} ders — %${pct.toInt()} devamlılık"
-                        Text(statusText, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if (course.total_sessions > 0) {
-                        Box(
-                            modifier = Modifier
-                                .padding(end = 14.dp)
-                                .background(barColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                "%${pct.toInt()}",
-                                fontWeight = FontWeight.ExtraBold,
-                                color = barColor,
-                                fontSize = 16.sp
-                            )
-                        }
-                    }
+                    Text(
+                        text = if (isNoSession) "-" else "${pct.toInt()}%",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = if (isNoSession) MaterialTheme.colorScheme.onSurfaceVariant else statusColor
+                    )
                 }
 
-                // ── Gün-Gün Katılım Bandı ──
-                if (!sortedAttendance.isNullOrEmpty()) {
-                    val recentAttendance = sortedAttendance.takeLast(10)
-                    val startIndex = maxOf(0, sortedAttendance.size - 10)
+                Spacer(Modifier.width(16.dp))
 
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = course.course_name,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            "Gün-Gün Katılım (Son ${recentAttendance.size} Ders)",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = course.course_code,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            recentAttendance.forEachIndexed { i, day ->
-                                StudentDayChip(
-                                    dayIndex = startIndex + i + 1,
-                                    item     = day,
-                                    modifier = Modifier.weight(1f)
+                // Sağ Taraf Durum Yazısı
+                if (!isNoSession) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "${course.present_sessions} / ${course.total_sessions}",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Katılım",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Henüz ders yok",
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
+
+            // -- Alt Bölüm (Katılım Geçmişi) --
+            if (!sortedAttendance.isNullOrEmpty()) {
+                val recentAttendance = sortedAttendance.takeLast(10)
+                
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(
+                        "Son Yoklamalar",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val startIndex = maxOf(0, sortedAttendance.size - 10)
+                        recentAttendance.forEachIndexed { i, day ->
+                            val isPresent = day.status == "present"
+                            val dayColor = if (isPresent) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error
+                            val dayIndex = startIndex + i + 1
+                            
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(28.dp)
+                                        .background(dayColor.copy(alpha = 0.12f), RoundedCornerShape(6.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (isPresent) "✓" else "✗",
+                                        color = dayColor,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = "$dayIndex",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            // Sıranın geri kalanını boş doldur
-                            repeat((10 - recentAttendance.size).coerceAtLeast(0)) {
-                                Box(modifier = Modifier.weight(1f))
-                            }
                         }
-
-                        Spacer(Modifier.height(4.dp))
-                        // Açıklama
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            StudentLegendItem(Color(0xFF4CAF50), "Katıldı")
-                            StudentLegendItem(Color(0xFFCF6679), "Katılmadı")
+                        // Geri kalanı doldur (Eğer 10'dan azsa)
+                        repeat((10 - recentAttendance.size).coerceAtLeast(0)) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(28.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            )
                         }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun StudentDayChip(dayIndex: Int, item: StudentAttendanceItem, modifier: Modifier = Modifier) {
-    val isPresent = item.status == "present"
-    val color = if (isPresent) Color(0xFF4CAF50) else Color(0xFFCF6679)
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(24.dp)
-                .clip(RoundedCornerShape(5.dp))
-                .background(color.copy(alpha = 0.18f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = if (isPresent) "✓" else "✗",
-                color = color,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp
-            )
-        }
-        Text(
-            text = "$dayIndex",
-            fontSize = 8.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 

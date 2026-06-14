@@ -1,8 +1,11 @@
 package com.yoklama.teacher.ui.theme
 
+import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFF7C9EFF),
@@ -18,10 +21,35 @@ private val DarkColorScheme = darkColorScheme(
     error = Color(0xFFCF6679)
 )
 
+private val LightColorScheme = lightColorScheme(
+    primary = Color(0xFF2D5CBA),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFDAE2FF),
+    onPrimaryContainer = Color(0xFF00184A),
+    secondary = Color(0xFF565E71),
+    background = Color(0xFFFDFBFF),
+    surface = Color(0xFFFDFBFF),
+    surfaceVariant = Color(0xFFE1E2EC),
+    onBackground = Color(0xFF1B1B1F),
+    onSurface = Color(0xFF1B1B1F),
+    error = Color(0xFFBA1A1A)
+)
+
 @Composable
-fun TeacherTheme(content: @Composable () -> Unit) {
+fun TeacherTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    val context = LocalContext.current
+    val colorScheme = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && darkTheme -> dynamicDarkColorScheme(context)
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !darkTheme -> dynamicLightColorScheme(context)
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
+
     MaterialTheme(
-        colorScheme = DarkColorScheme,
+        colorScheme = colorScheme,
         typography = Typography(),
         content = content
     )
