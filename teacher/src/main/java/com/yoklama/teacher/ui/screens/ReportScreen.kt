@@ -252,18 +252,21 @@ fun StudentAttendanceCard(student: StudentReportItem, threshold: Double) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Gün-gün katılım bandı
-            val daily = student.daily_attendance?.sortedBy { it.date }
-            if (!daily.isNullOrEmpty()) {
+            // Gün-gün katılım bandı (Son 10 gün)
+            val allDaily = student.daily_attendance?.sortedBy { it.date } ?: emptyList()
+            val daily = allDaily.takeLast(10)
+            val startIndex = maxOf(0, allDaily.size - 10)
+
+            if (daily.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
-                Text("Gün-Gün Katılım:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Gün-Gün Katılım (Son ${daily.size} Ders):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(6.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     daily.forEachIndexed { index, day ->
-                        DayChip(dayIndex = index + 1, day = day, modifier = Modifier.weight(1f))
+                        DayChip(dayIndex = startIndex + index + 1, day = day, modifier = Modifier.weight(1f))
                     }
                     // Boş kutular (maks 10 seçeneğe pad)
                     repeat((10 - daily.size).coerceAtLeast(0)) {

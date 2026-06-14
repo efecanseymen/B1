@@ -193,6 +193,9 @@ fun CourseListItem(course: StudentCourseInfo) {
 
             // ── Gün-Gün Katılım Bandı ──
             if (!sortedAttendance.isNullOrEmpty()) {
+                val recentAttendance = sortedAttendance.takeLast(10)
+                val startIndex = maxOf(0, sortedAttendance.size - 10)
+
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 4.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
@@ -203,34 +206,27 @@ fun CourseListItem(course: StudentCourseInfo) {
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        "Gün-Gün Katılım",
+                        "Gün-Gün Katılım (Son ${recentAttendance.size} Ders)",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(Modifier.height(6.dp))
 
-                    // Her satıra max 10 gün sığdır
-                    sortedAttendance.chunked(10).forEachIndexed { chunkIndex, chunk ->
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            chunk.forEachIndexed { i, day ->
-                                val globalIndex = chunkIndex * 10 + i
-                                StudentDayChip(
-                                    dayIndex = globalIndex + 1,
-                                    item     = day,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                            // Sıranın geri kalanını boş doldur
-                            repeat(10 - chunk.size) {
-                                Box(modifier = Modifier.weight(1f))
-                            }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        recentAttendance.forEachIndexed { i, day ->
+                            StudentDayChip(
+                                dayIndex = startIndex + i + 1,
+                                item     = day,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
-                        if (chunkIndex < sortedAttendance.chunked(10).size - 1) {
-                            Spacer(Modifier.height(3.dp))
+                        // Sıranın geri kalanını boş doldur
+                        repeat((10 - recentAttendance.size).coerceAtLeast(0)) {
+                            Box(modifier = Modifier.weight(1f))
                         }
                     }
 
