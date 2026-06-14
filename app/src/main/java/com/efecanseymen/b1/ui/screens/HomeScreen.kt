@@ -146,95 +146,106 @@ fun CourseListItem(course: StudentCourseInfo) {
         shape = RoundedCornerShape(14.dp),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+        ) {
+            // ── Renkli çizgi — tam kart yüksekliğini kaplar ──
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(barColor, RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp))
+            )
 
-            // ── Üst satır: renkli çizgi + bilgi + yüzde ──
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .height(if (sortedAttendance.isNullOrEmpty()) 72.dp else 72.dp)
-                        .background(barColor, RoundedCornerShape(topStart = 14.dp, bottomStart = if (sortedAttendance.isNullOrEmpty()) 14.dp else 0.dp))
-                )
-                Column(
-                    modifier = Modifier
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
-                        .weight(1f)
+            // ── Kart içeriği ──
+            Column(modifier = Modifier.weight(1f)) {
+
+                // ── Üst satır: bilgi + yüzde ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(course.course_name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text(
-                        course.course_code, fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    val statusText = if (course.total_sessions == 0)
-                        "Henüz ders yok"
-                    else
-                        "${course.present_sessions}/${course.total_sessions} ders — %${pct.toInt()} devamlılık"
-                    Text(statusText, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (course.total_sessions > 0) {
-                    Box(
+                    Column(
                         modifier = Modifier
-                            .align(Alignment.CenterVertically)
-                            .padding(end = 14.dp)
-                            .background(barColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                            .weight(1f)
                     ) {
+                        Text(course.course_name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Text(
-                            "%${pct.toInt()}",
-                            fontWeight = FontWeight.ExtraBold,
-                            color = barColor,
-                            fontSize = 16.sp
+                            course.course_code, fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(Modifier.height(4.dp))
+                        val statusText = if (course.total_sessions == 0)
+                            "Henüz ders yok"
+                        else
+                            "${course.present_sessions}/${course.total_sessions} ders — %${pct.toInt()} devamlılık"
+                        Text(statusText, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                }
-            }
-
-            // ── Gün-Gün Katılım Bandı ──
-            if (!sortedAttendance.isNullOrEmpty()) {
-                val recentAttendance = sortedAttendance.takeLast(10)
-                val startIndex = maxOf(0, sortedAttendance.size - 10)
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 4.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                )
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        "Gün-Gün Katılım (Son ${recentAttendance.size} Ders)",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(Modifier.height(6.dp))
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        recentAttendance.forEachIndexed { i, day ->
-                            StudentDayChip(
-                                dayIndex = startIndex + i + 1,
-                                item     = day,
-                                modifier = Modifier.weight(1f)
+                    if (course.total_sessions > 0) {
+                        Box(
+                            modifier = Modifier
+                                .padding(end = 14.dp)
+                                .background(barColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                "%${pct.toInt()}",
+                                fontWeight = FontWeight.ExtraBold,
+                                color = barColor,
+                                fontSize = 16.sp
                             )
                         }
-                        // Sıranın geri kalanını boş doldur
-                        repeat((10 - recentAttendance.size).coerceAtLeast(0)) {
-                            Box(modifier = Modifier.weight(1f))
-                        }
                     }
+                }
 
-                    Spacer(Modifier.height(4.dp))
-                    // Açıklama
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        StudentLegendItem(Color(0xFF4CAF50), "Katıldı")
-                        StudentLegendItem(Color(0xFFCF6679), "Katılmadı")
+                // ── Gün-Gün Katılım Bandı ──
+                if (!sortedAttendance.isNullOrEmpty()) {
+                    val recentAttendance = sortedAttendance.takeLast(10)
+                    val startIndex = maxOf(0, sortedAttendance.size - 10)
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            "Gün-Gün Katılım (Son ${recentAttendance.size} Ders)",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(Modifier.height(6.dp))
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            recentAttendance.forEachIndexed { i, day ->
+                                StudentDayChip(
+                                    dayIndex = startIndex + i + 1,
+                                    item     = day,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            // Sıranın geri kalanını boş doldur
+                            repeat((10 - recentAttendance.size).coerceAtLeast(0)) {
+                                Box(modifier = Modifier.weight(1f))
+                            }
+                        }
+
+                        Spacer(Modifier.height(4.dp))
+                        // Açıklama
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            StudentLegendItem(Color(0xFF4CAF50), "Katıldı")
+                            StudentLegendItem(Color(0xFFCF6679), "Katılmadı")
+                        }
                     }
                 }
             }

@@ -76,17 +76,19 @@ class BleScannerService : Service() {
         const val EXTRA_STUDENT_ID = "student_id"
         const val CHANNEL_ID = "BLE_SCANNER_CHANNEL"
         const val NOTIF_ID = 2001
-        /** Ana UUID — scanner filtresi ve session_id taşıyıcı */
+        
+        // Reklam verenin (Öğretmen) kullandığı 16-bit UUID'ler (31 byte sınırı sebebiyle zorunlu)
         val SERVICE_UUID: ParcelUuid =
             ParcelUuid.fromString("0000FEF5-0000-1000-8000-00805F9B34FB")
 
-        /** İkinci UUID — scan response'ta checkin_id taşıyıcı (öğretmen ile aynı) */
         val CHECKIN_UUID: ParcelUuid =
             ParcelUuid.fromString("0000FEF6-0000-1000-8000-00805F9B34FB")
 
         // Broadcast action — UI'a bildir
         const val ACTION_PRESENCE_REPORTED = "com.efecanseymen.b1.PRESENCE_REPORTED"
         const val EXTRA_CHECKIN_ID = "checkin_id"
+        const val EXTRA_SESSION_ID = "session_id"
+        const val EXTRA_MESSAGE = "message"
         const val EXTRA_STATUS = "status"
 
         /** Samsung cihazlarda BLE scan sessizce durabiliyor - periyodik restart */
@@ -223,12 +225,16 @@ class BleScannerService : Service() {
 
                 val body = if (r.isSuccessful) wrapper?.parse(com.efecanseymen.b1.data.model.ReportPresenceBody::class.java) else null
                 val success = body?.success == true
+                val serverMessage = body?.message
                 Log.d("BLE", "← Parsed: success=$success, body=$body")
 
                 // UI'a bildir
                 val broadcastIntent = Intent(ACTION_PRESENCE_REPORTED).apply {
                     putExtra(EXTRA_CHECKIN_ID, checkinId)
+                    putExtra(EXTRA_SESSION_ID, sessionId)
+                    putExtra(EXTRA_MESSAGE, serverMessage)
                     putExtra(EXTRA_STATUS, success)
+                    setPackage(packageName) // Android 14+ güvenlik gereksinimi
                 }
                 sendBroadcast(broadcastIntent)
 
@@ -236,6 +242,14 @@ class BleScannerService : Service() {
             } catch (e: Exception) {
                 Log.e("BLE", "Presence hatası: ${e.message}", e)
                 reportedCheckins.remove(checkinId)
+                
+                // HATA DURUMUNDA DA UI'A BİLDİR
+                val errorIntent = Intent(ACTION_PRESENCE_REPORTED).apply {
+                    putExtra(EXTRA_CHECKIN_ID, checkinId)
+                    putExtra(EXTRA_STATUS, false)
+                    setPackage(packageName)
+                }
+                sendBroadcast(errorIntent)
             }
         }
     }

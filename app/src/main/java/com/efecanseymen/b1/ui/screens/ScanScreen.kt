@@ -11,12 +11,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,8 +32,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -49,6 +54,7 @@ fun ScanScreen(viewModel: HomeViewModel, modifier: Modifier) {
     var isConnected   by remember { mutableStateOf(false) }
     var reportSuccess by remember { mutableStateOf<Boolean?>(null) }
     var connectedCid  by remember { mutableStateOf<String?>(null) }
+    var serverMessage by remember { mutableStateOf<String?>(null) }
 
     // BLE servisi broadcast'ini dinle
     DisposableEffect(Unit) {
@@ -56,10 +62,26 @@ fun ScanScreen(viewModel: HomeViewModel, modifier: Modifier) {
             override fun onReceive(ctx: Context, intent: Intent) {
                 if (intent.action == BleScannerService.ACTION_PRESENCE_REPORTED) {
                     val cid     = intent.getStringExtra(BleScannerService.EXTRA_CHECKIN_ID)
+                    val sid     = intent.getStringExtra(BleScannerService.EXTRA_SESSION_ID)
+                    val msg     = intent.getStringExtra(BleScannerService.EXTRA_MESSAGE)
                     val success = intent.getBooleanExtra(BleScannerService.EXTRA_STATUS, false)
                     connectedCid  = cid
                     reportSuccess = success
-                    if (success) isConnected = true   // Başarılıysa bağlandı moduna geç
+                    if (success) {
+                        isConnected = true
+                        
+                        // API'den mesaj geldiyse onu, yoksa sessionId içinden ders kodunu bulmaya çalışalım
+                        if (!msg.isNullOrBlank()) {
+                            serverMessage = msg
+                        } else if (!sid.isNullOrBlank()) {
+                            val courses = viewModel.courses.value ?: emptyList()
+                            val matchedCourse = courses.find { sid.contains(it.course_code, ignoreCase = true) }
+                            serverMessage = matchedCourse?.course_name?.let { "$it Yoklamasına Katıldınız" }
+                                ?: "Yoklamaya Katıldın! ✓"
+                        } else {
+                            serverMessage = "Yoklamaya Katıldın! ✓"
+                        }
+                    }
                 }
             }
         }
@@ -69,14 +91,7 @@ fun ScanScreen(viewModel: HomeViewModel, modifier: Modifier) {
     }
 
     // İzin listesi
-    val permissions = if (Build.VERSION.SDK_INT >= 33)
-        arrayOf(
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.POST_NOTIFICATIONS
-        )
-    else if (Build.VERSION.SDK_INT >= 31)
+    val permissions = if (Build.VERSION.SDK_INT >= 31)
         arrayOf(
             Manifest.permission.BLUETOOTH_SCAN,
             Manifest.permission.BLUETOOTH_CONNECT,
@@ -111,53 +126,90 @@ fun ScanScreen(viewModel: HomeViewModel, modifier: Modifier) {
     val ring3Alpha by infiniteTransition.animateFloat(
         0.8f, 0f, infiniteRepeatable(tween(1200, 800, LinearEasing), RepeatMode.Restart), label = "r3a")
 
-    // Bağlandı pulse (yeşil)
-    val successPulse by infiniteTransition.animateFloat(
-        1f, 1.08f, infiniteRepeatable(tween(800), RepeatMode.Reverse), label = "sp")
+    // Yeşil Atom Bombası (Arka Plan Patlaması)
+    val explosionScale by animateFloatAsState(
+        targetValue = if (isConnected) 30f else 0f,
+        animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+        label = "explosion"
+    )
 
-    // İkon ölçeği (buton)
-    val btnScale by animateFloatAsState(
-        targetValue = if (isScanning && !isConnected) 1.1f else 1f,
-        animationSpec = tween(500), label = "btn"
+    // Buton Şekil Animasyonu (Çok yuvarlaktan basık karemsi şekle)
+    val buttonCornerRadius by animateDpAsState(
+        targetValue = if (isConnected) 40.dp else 90.dp,
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "cornerRadius"
+    )
+
+    // Buton Büyüme Animasyonu (Bağlanınca biraz büyür)
+    val buttonScale by animateFloatAsState(
+        targetValue = if (isConnected) 1.15f else 1f,
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "buttonScale"
+    )
+
+    // Buton Rengi
+    val buttonColor by animateColorAsState(
+        targetValue = when {
+            isConnected -> Color(0xFF4CAF50).copy(alpha = 0.15f)
+            isScanning -> MaterialTheme.colorScheme.primary
+            else -> MaterialTheme.colorScheme.surface
+        },
+        animationSpec = tween(400), label = "buttonColor"
+    )
+
+    // İkon Rengi
+    val iconColor by animateColorAsState(
+        targetValue = when {
+            isConnected -> Color(0xFF4CAF50)
+            isScanning -> MaterialTheme.colorScheme.onPrimary
+            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        },
+        animationSpec = tween(400), label = "iconColor"
     )
 
     Box(
         modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
-        // ─── TARAMA HALKALARI ───
+        // ─── YEŞİL ATOM BOMBASI (ARKA PLAN) ───
+        Box(
+            modifier = Modifier
+                .size(100.dp)
+                .graphicsLayer {
+                    scaleX = explosionScale
+                    scaleY = explosionScale
+                }
+                .background(Color(0xFF0D2B0D), CircleShape)
+        )
+        
+        // ─── TARAMA HALKALARI (graphicsLayer ile optimize) ───
         if (isScanning && !isConnected) {
-            listOf(
-                ring1Scale to ring1Alpha,
-                ring2Scale to ring2Alpha,
-                ring3Scale to ring3Alpha
-            ).forEach { (scale, alpha) ->
-                Box(
-                    modifier = Modifier
-                        .size(200.dp)
-                        .scale(scale)
-                        .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = alpha), CircleShape)
-                )
-            }
-        }
-
-        // ─── BAĞLANDI YEŞİL HALE ───
-        if (isConnected) {
             Box(
-                modifier = Modifier
-                    .size(200.dp)
-                    .scale(successPulse)
-                    .background(Color(0xFF4CAF50).copy(alpha = 0.08f), CircleShape)
+                modifier = Modifier.size(200.dp).graphicsLayer {
+                    scaleX = ring1Scale; scaleY = ring1Scale; alpha = ring1Alpha
+                }.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+            )
+            Box(
+                modifier = Modifier.size(200.dp).graphicsLayer {
+                    scaleX = ring2Scale; scaleY = ring2Scale; alpha = ring2Alpha
+                }.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+            )
+            Box(
+                modifier = Modifier.size(200.dp).graphicsLayer {
+                    scaleX = ring3Scale; scaleY = ring3Scale; alpha = ring3Alpha
+                }.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
             )
         }
 
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 32.dp)
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp)
         ) {
-            Spacer(Modifier.height(32.dp))
-
-            // ─── BAŞLIK (animasyonlu geçiş) ───
+            // ─── BAŞLIK ───
             AnimatedContent(
                 targetState = when {
                     isConnected  -> "connected"
@@ -169,7 +221,7 @@ fun ScanScreen(viewModel: HomeViewModel, modifier: Modifier) {
             ) { state ->
                 Text(
                     text = when (state) {
-                        "connected" -> "Yoklamaya Katıldın! ✓"
+                        "connected" -> serverMessage ?: "Yoklamaya Katıldın! ✓"
                         "scanning"  -> "Taranıyor..."
                         else        -> "Ders Yayını Ara"
                     },
@@ -179,33 +231,25 @@ fun ScanScreen(viewModel: HomeViewModel, modifier: Modifier) {
                     color = when (state) {
                         "connected" -> Color(0xFF4CAF50)
                         else        -> MaterialTheme.colorScheme.onBackground
-                    }
+                    },
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
             Spacer(Modifier.height(48.dp))
 
             // ─── ANA BUTON / İKON ───
-            if (isConnected) {
-                // Bağlandı → büyük yeşil tik
-                Box(
-                    modifier = Modifier
-                        .size(180.dp)
-                        .scale(successPulse)
-                        .background(Color(0xFF4CAF50).copy(alpha = 0.15f), RoundedCornerShape(40.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector    = Icons.Filled.CheckCircle,
-                        contentDescription = null,
-                        modifier       = Modifier.size(100.dp),
-                        tint           = Color(0xFF4CAF50)
-                    )
-                }
-            } else {
-                // Taranıyor / Başlat → BLE butonu
-                Button(
-                    onClick = {
+            Box(
+                modifier = Modifier
+                    .offset(y = -22.dp)
+                    .graphicsLayer {
+                        scaleX = buttonScale
+                        scaleY = buttonScale
+                    }
+                    .size(180.dp)
+                    .clip(RoundedCornerShape(buttonCornerRadius))
+                    .background(buttonColor)
+                    .clickable(enabled = !isConnected) {
                         if (isScanning) {
                             context.stopService(Intent(context, BleScannerService::class.java))
                             isScanning = false
@@ -221,22 +265,27 @@ fun ScanScreen(viewModel: HomeViewModel, modifier: Modifier) {
                             }
                         }
                     },
-                    modifier  = Modifier.size(180.dp).scale(btnScale),
-                    shape     = RoundedCornerShape(40.dp),
-                    colors    = ButtonDefaults.buttonColors(
-                        containerColor = if (isScanning)
-                            MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surface
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(0.dp)
-                ) {
+                contentAlignment = Alignment.Center
+            ) {
+                AnimatedContent(
+                    targetState = when {
+                        isConnected -> "success"
+                        isScanning -> "scanning"
+                        else -> "idle"
+                    },
+                    transitionSpec = {
+                        scaleIn(tween(400)) togetherWith scaleOut(tween(400))
+                    }, label = "icon"
+                ) { state ->
                     Icon(
-                        imageVector    = if (isScanning) Icons.Filled.Bluetooth
-                                         else Icons.Filled.BluetoothDisabled,
+                        imageVector = when (state) {
+                            "success" -> Icons.Filled.CheckCircle
+                            "scanning" -> Icons.Filled.Bluetooth
+                            else -> Icons.Filled.BluetoothDisabled
+                        },
                         contentDescription = null,
-                        modifier       = Modifier.size(100.dp),
-                        tint           = if (isScanning) MaterialTheme.colorScheme.onPrimary
-                                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        modifier = Modifier.size(100.dp),
+                        tint = iconColor
                     )
                 }
             }

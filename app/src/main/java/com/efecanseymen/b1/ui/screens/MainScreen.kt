@@ -1,7 +1,5 @@
 package com.efecanseymen.b1.ui.screens
 
-// import ClassScreen  ← BU SATIRI SİL
-
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -23,8 +21,8 @@ fun MainScreen(viewModel: HomeViewModel, onLogOutClick: () -> Unit){
 
     val tabs = listOf(
         Triple("Ana Sayfa", Icons.Filled.Home, 0),
-        Triple("Hangi Derslik", Icons.Filled.AssignmentTurnedIn, 1),
-        Triple("Yoklama", Icons.Filled.Nfc, 2)
+        Triple("Yoklama", Icons.Filled.Nfc, 1),
+        Triple("Hangi Derslik", Icons.Filled.AssignmentTurnedIn, 2)
     )
 
     Scaffold(
@@ -49,11 +47,11 @@ fun MainScreen(viewModel: HomeViewModel, onLogOutClick: () -> Unit){
                 onLogOutClick = onLogOutClick,
                 modifier = Modifier.padding(innerPadding)
             )
-            1 -> ClassScreen(
+            1 -> ScanScreen(
                 viewModel = viewModel,
                 modifier = Modifier.padding(innerPadding)
             )
-            2 -> ScanScreen(
+            2 -> ClassScreen(
                 viewModel = viewModel,
                 modifier = Modifier.padding(innerPadding)
             )

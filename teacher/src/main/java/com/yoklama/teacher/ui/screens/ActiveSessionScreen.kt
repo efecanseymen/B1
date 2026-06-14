@@ -134,7 +134,14 @@ fun ActiveSessionScreen(
             },
             confirmButton = {
                 Button(
-                    onClick = { showEndDialog = false; viewModel.endSession() },
+                    onClick = { 
+                        showEndDialog = false
+                        viewModel.endSession() 
+                        
+                        // BLE YAYININI DURDUR (HAYALET SINYALI ONLEME)
+                        val intent = android.content.Intent(context, com.yoklama.teacher.service.BleAdvertiserService::class.java)
+                        context.stopService(intent)
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCF6679))
                 ) { Text("Evet, Bitir") }
             },
